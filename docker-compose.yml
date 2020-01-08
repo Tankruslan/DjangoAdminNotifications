@@ -1,0 +1,107 @@
+version: '3'
+
+volumes:
+  pgdata:
+  static_files:
+  admin_static_files:
+  rabbitmq_data:
+
+services:
+  django:
+    build: ./django-producing/
+    restart: always
+    command: gunicorn --bind 0.0.0.0:8000 myproject.wsgi
+    volumes:
+      - static_files:/static_files
+    depends_on:
+#      - redis  # use this instead of rabbit
+      - rabbitmq  # use this instead of redis
+      - postgres
+
+  django_admin:
+    build: ./django_admin
+    restart: always
+    command: gunicorn --bind 0.0.0.0:8001 django_admin.wsgi
+    volumes:
+      - admin_static_files:/static_files
+    depends_on:
+      - postgres
+
+  socket_server:
+    build: ./socket_server
+    restart: always
+    command: python socket_server.py
+
+  worker_base:
+    build: ./worker-consumer
+    image: worker
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  workers:
+   image: worker
+   restart: always
+   command: python worker.py
+   depends_on:
+#     - redis  # use this instead of rabbit
+     - rabbitmq  # use this instead of redis
+     - postgres
+
+  nginx:
+    image: nginx:stable
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/site-config:/etc/nginx/sites-enabled/django-config
+      - static_files:/static_files
+      - admin_static_files:/admin_static_files
+    ports:
+      - 80:80
+      - 8080:8080
+
+  postgres:
+    image: postgres:12
+    restart: always
+    volumes:
+      - ./docker-postgres:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_MULTIPLE_DATABASES="docker-postgres-db", "docker-admin-postgres-db"
+      - POSTGRES_USER=docker-postgres
+      - POSTGRES_PASS=docker-postgres-psw
+    ports:
+      - 5432:5432
+
+  celery:
+    build: ./django-producing/
+    command: celery -A myproject worker -l info
+    depends_on:
+#      - redis  # use this instead of rabbit
+      - rabbitmq  # use this instead of redis
+
+  celery-beat:
+    build: ./django-producing/
+    command: celery -A myproject beat -l info
+    depends_on:
+#      - redis  # use this instead of rabbit
+      - rabbitmq  # use this instead of redis
+
+  flower:
+    image: mher/flower
+    command: flower --broker=amqp://rabbitmq --port=8888
+    ports:
+      - 8888:8888
+
+  rabbitmq:  # use this instead of redis
+    image: "rabbitmq:3-management"
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - 'rabbitmq_data:/rabbitmq_data'
+
+#  redis:  # use this instead of rabbitmq
+#    image: redis:3
+#    restart: always

@@ -1,0 +1,6 @@
+*.sqlite3
+venv/
+__pycache__/
+#django_admin/static/admin-lte/
+#django_admin/static/admin/js/vendor/
+.idea/

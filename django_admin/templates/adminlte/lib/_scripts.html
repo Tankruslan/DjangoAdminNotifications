@@ -1,0 +1,114 @@
+{% load static %}
+
+{% block scripts %}
+<script src="{% static 'admin-lte/plugins/jquery/jquery.min.js' %}"></script>
+<script src="{% static 'admin-lte/plugins/jquery-ui/jquery-ui.min.js' %}"></script>
+<!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
+<script>
+    $.widget.bridge('uibutton', $.ui.button);
+</script>
+<script src="{% static 'admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js' %} "></script>
+
+
+{% block datatable_js %}{% endblock %}
+
+<script src="{% static 'admin-lte/dist/js/adminlte.min.js' %}"></script>
+<script src="{% static 'admin-lte/dist/js/demo.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+
+<script>
+    // Use 'localhost:8002' if you are out of docker, or <server-name:8080> if you are in docker
+    const sock = new WebSocket('ws://localhost:8080/ws/{{ request.user.username }}');
+    sock.onopen = function () {
+        console.log('wait');
+    };
+
+    // income message handler
+    sock.onmessage = function (event) {
+        console.log(event.data);
+    };
+
+    sock.onclose = function (event) {
+        if (event.wasClean) {
+            console.log('Clean connection end')
+        } else {
+            console.log('Connection broken')
+        }
+    };
+
+    sock.onerror = function (error) {
+        console.log(error);
+    }
+</script>
+<script>
+
+    $("#notifications-link").on("click", function () {
+        $('#notification-badge').addClass('d-none');
+    });
+
+    $(".mark_as_read").on("click", function (e) {
+        e.preventDefault();
+        $.ajax({
+            type : "GET",
+            url : "{% url 'mark_block_as_read' %}",
+            success: function (data) {
+                const notifications_count = $("#notification-badge").text() - 10;
+                if (notifications_count < 0){
+                    $('#notification-quantity').html('0 unread notifications');
+                    $('#notification-badge').html(0);
+                    $('.show-more-notifications').addClass('d-none');
+                    $('.mark_as_read').addClass('d-none');
+                }
+                else {
+                    $('#notification-quantity').html(notifications_count + ' unread notifications');
+                    $('#notification-badge').html(notifications_count);
+                }
+
+                $('#notifications_block').html('');
+
+                data.new_notifications.forEach(n => {
+                    $('#notifications_block').append(
+                          $(`<a class="dropdown-item notification-dropdown-link" data-id=${n.id}><i class="fas fa-envelope mr-2"></i> ${n.actor} ${n.verb} ${n.action_object}<a/>`)
+                     );
+                });
+            },
+        })
+    });
+
+    $('#notifications_block').on('click', '.notification-dropdown-link',  function (e) {
+        e.preventDefault();
+        const notification_id = $(this).attr('data-id');
+        const data = {
+          notification_id: notification_id
+        };
+        $.ajax({
+            type : "GET",
+            url: "{% url 'mark_one_as_read' %}",
+            data : data,
+            success: function (data) {
+                const notifications_count = $("#notification-badge").text() - 1;
+                if (notifications_count === 0) {
+                    $('#notification-quantity').html('0 unread notifications');
+                    $('#notification-badge').html(0);
+                    $('.show-more-notifications').addClass('d-none');
+                    $('.mark_as_read').addClass('d-none');
+                }
+                else {
+                    $('#notification-quantity').html(notifications_count + ' unread notifications');
+                    $('#notification-badge').html(notifications_count);
+                }
+
+                $(`a[data-id=${notification_id}]`).addClass('d-none');
+
+                const n = data.new_notification;
+                if (n){
+                     $('#notifications_block').append(
+                          $(`<a class="dropdown-item notification-dropdown-link" data-id=${n.id}><i class="fas fa-envelope mr-2"></i> ${n.actor} ${n.verb} ${n.action_object}<a/>`)
+                     );
+                }
+            }
+        })
+    });
+
+</script>
+{% endblock %}
