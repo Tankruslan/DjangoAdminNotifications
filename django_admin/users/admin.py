@@ -1,5 +1,4 @@
 from django.contrib import admin
-from loguru import logger
 from .models import Profile
 from notifications.models import Notification
 from notifications.admin import NotificationAdmin
@@ -22,8 +21,13 @@ admin.site.register(Profile, ProfileAdmin)
 
 
 class NewNotificationAdmin(NotificationAdmin):
-    list_display = ('recipient', 'actor',
-                    'level', 'action_object', 'unread', 'public')
+    list_display = ('recipient', 'actor', 'verb', 'action_object1',
+                    'unread', 'timestamp')
+
+    def action_object1(self, obj):
+        return str(obj).split('"')[1]
+
+    action_object1.short_description = 'Action object'
 
 
 admin.site.unregister(Notification)

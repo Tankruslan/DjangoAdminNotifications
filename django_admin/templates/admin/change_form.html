@@ -1,5 +1,6 @@
 {% extends "admin/base_site.html" %}
 {% load i18n admin_urls static admin_modify %}
+{% load split_tag %}
 
 {% block extrahead %}{{ block.super }}
 <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
@@ -26,7 +27,7 @@
         <li class="breadcrumb-item">
             {% if has_change_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}</li>
         
-        <li class="breadcrumb-item active">{% if add %}{% blocktrans with name=opts.verbose_name %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|truncatewords:"18" }}{% endif %}</li>
+        <li class="breadcrumb-item active">{% if add %}{% blocktrans with name=opts.verbose_name %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|split:' ,"' }}{% endif %}</li>
     </ol>
 </div>
 </div>
